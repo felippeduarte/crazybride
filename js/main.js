@@ -1,5 +1,6 @@
 var screenWidth = 1080;
 var screenHeight = 640;
+var brideDimensions = 16;
 
 var cursors;
 var baseVelocity = 150;
@@ -56,6 +57,8 @@ var state = {
         game.physics.arcade.enable(this.bride);
         this.bride.body.allowGravity = false;
         this.bride.collideWorldBounds = true;
+        this.bride.anchor.x = 0.5;
+        this.bride.anchor.y = 0.5;
     },
     createBouquet: function() {
         var bouquetInitialPosition = this.bouquetInitialPosition();
@@ -111,25 +114,37 @@ var state = {
         this.maids.setAll('checkWorldBounds', true);
     },
     brideUpdate: function() {
-        this.bride.body.velocity.x = 0;
-        this.bride.body.velocity.y = 0;
+        var b = this.bride.body;
+        b.velocity.x = 0;
+        b.velocity.y = 0;
 
-        if(this.cursors.left.isDown) {
-            this.bride.body.velocity.x = -baseVelocity;
+        if((this.cursors.left.isDown) ||
+           (game.input.mousePointer.pageX < this.bride.x - brideDimensions) ||
+           (game.input.pointer1.isDown && (game.input.pointer1.pageX < this.bride.x - brideDimensions))) {
+            b.velocity.x = -baseVelocity;
         }
-        if(this.cursors.right.isDown) {
-            this.bride.body.velocity.x = baseVelocity;
+        if((this.cursors.right.isDown) ||
+           (game.input.mousePointer.pageX > this.bride.x + brideDimensions) ||
+           (game.input.pointer1.isDown && (game.input.pointer1.pageX > this.bride.x + brideDimensions))) {
+            b.velocity.x = baseVelocity;
         }
-        if(this.cursors.up.isDown) {
-            this.bride.body.velocity.y = -baseVelocity;
+        if((this.cursors.up.isDown) ||
+           (game.input.mousePointer.pageY < this.bride.y - brideDimensions) ||
+           (game.input.pointer1.isDown && (game.input.pointer1.pageY < this.bride.y - brideDimensions))) {
+            b.velocity.y = -baseVelocity;
         }
-        if(this.cursors.down.isDown) {
-            this.bride.body.velocity.y = baseVelocity;
+        if((this.cursors.down.isDown) ||
+           (game.input.mousePointer.pageY > this.bride.y + brideDimensions) ||
+           (game.input.pointer1.isDown && (game.input.pointer1.pageY > this.bride.y + brideDimensions))) {
+            b.velocity.y = baseVelocity;
         }
 
-        if(this.spaceKey.isDown) {
+        if(this.fireCommand()) {
             this.fireBouquet();
         }
+    },
+    fireCommand: function() {
+        return (this.spaceKey.isDown || game.input.mousePointer.isDown || game.input.pointer2.isDown);
     },
     fireBouquet: function() {
         if(!this.bouquet.alive) {
