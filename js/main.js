@@ -3,10 +3,14 @@ var screenHeight = 640;
 var brideDimensions = 16;
 
 var cursors;
-var baseVelocity = 150;
+var baseVelocity = 100;
+
+var numberOfMaids = 20;
+
+var floor;
 
 var sounds = {
-    throw: 'sounrdThrow'
+    throw: 'soundThrow'
 };
 
 var sprites = {
@@ -21,7 +25,13 @@ var sprites = {
 var score = 0;
 var scoreText;
 var bouquetsUsed = 0;
-var bouquetsUsedText;
+var scoreTextLabel = 'Inimigas Eliminadas:';
+var bouquetsUsedTextLabel = 'Buquês-bomba Utilizados:';
+var labelFontSize = '24px';
+
+var endGame = {text1: null, text2: null, button: null};
+
+var gameRunning = false;
 
 var state = {
     preload: function() {
@@ -40,49 +50,64 @@ var state = {
         this.cursors = game.input.keyboard.createCursorKeys();
         this.spaceKey = game.input.keyboard.addKey(Phaser.Keyboard.SPACEBAR);
 
-        scoreText = game.add.text(16, 16, 'Score: 0', { fontSize: '32px', fill: '#000' });
-        bouquetsUsedText = game.add.text(16, 50, 'Bouquets Used: 0', { fontSize: '32px', fill: '#000' });
+        floor = [{x: 0, y: 0}, {x: brideDimensions * 15, y: game.world.height}];
 
+        this.createFloor();
         this.createBride();
         this.createBouquet();
         this.createMaids();
         this.createExplosions();
+        this.createScoreText();
+
+        gameRunning = true;
     },
     update: function() {
         this.brideUpdate();
         this.bouquetUpdate();
     },
+    createScoreText: function() {
+        var graphics = this.game.add.graphics();
+        
+        graphics.lineStyle(2, 0x000000, 1);
+        graphics.beginFill(0xFFFFFF, 1);
+        graphics.drawRect(10, 10, 340, 75);
+        graphics.endFill();
+
+        scoreText = game.add.text(16, 16, scoreTextLabel + ' 0', { fontSize: labelFontSize, fill: '#000' });
+        bouquetsUsedText = game.add.text(16, 50, bouquetsUsedTextLabel + ' 0', { fontSize: labelFontSize, fill: '#000' });
+    },
+    createFloor: function() {
+        var graphics = this.game.add.graphics();
+        graphics.lineStyle(2, 0xE90000, 1);
+        graphics.beginFill(0xD80000, 1);
+        graphics.drawRect(floor[0].x, floor[0].y, floor[1].x, floor[1].y);
+        graphics.endFill();
+    },
     createBride: function() {
-        this.bride = game.add.sprite(0, game.world.height / 2, sprites.bride);
+        this.bride = game.add.sprite(brideDimensions, game.world.height / 2, sprites.bride);
         game.physics.arcade.enable(this.bride);
         this.bride.body.allowGravity = false;
         this.bride.collideWorldBounds = true;
         this.bride.anchor.x = 0.5;
         this.bride.anchor.y = 0.5;
+        this.setBrideInitialPosition();
+    },
+    setBrideInitialPosition: function() {
+        this.bride.x = floor[1].x / 2;
+        this.bride.y = game.world.height / 2;
     },
     createBouquet: function() {
-        var bouquetInitialPosition = this.bouquetInitialPosition();
-        this.bouquet = game.add.sprite(bouquetInitialPosition.x, bouquetInitialPosition.y, sprites.bouquet);
-        this.bouquet.visible = false;
-        game.physics.arcade.enable(this.bouquet);
-        this.bouquet.body.allowGravity = false;
-        this.bouquet.checkWorldBounds = true;
-        this.bouquet.kill();
+        this.bouquet = game.add.weapon(2, sprites.bouquet);
+        this.bouquet.bulletKillType = Phaser.Weapon.KILL_WORLD_BOUNDS;
+        this.bouquet.bulletSpeed = 200;
+        this.bouquet.fireRate = 1200;
 
-        this.bouquet.events.onOutOfBounds.add(function() {
-            this.bouquet.kill();
-        }, this);
-    },
-    bouquetInitialPosition: function() {
-        return {
-            x: this.bride.body.position.x + 35,
-            y: this.bride.body.position.y
-        }
+        this.bouquet.trackSprite(this.bride, this.bride.width + this.bouquet.halfWidth, 0, true);
     },
     createMaids: function() {
         this.maids = game.add.physicsGroup();
 
-        for(var i = 0; i < 20; i++) {
+        for(var i = 0; i < numberOfMaids; i++) {
             this.createMaid();
         }
         this.setMaidCallbacks();
@@ -119,56 +144,66 @@ var state = {
         b.velocity.y = 0;
 
         if((this.cursors.left.isDown) ||
-           (game.input.mousePointer.pageX < this.bride.x - brideDimensions) ||
-           (game.input.pointer1.isDown && (game.input.pointer1.pageX < this.bride.x - brideDimensions))) {
+           (game.input.mousePointer.withinGame && (game.input.mousePointer.pageX < this.bride.x - brideDimensions) ||
+           (game.input.pointer1.isDown && (game.input.pointer1.pageX < this.bride.x - brideDimensions)))) {
             b.velocity.x = -baseVelocity;
         }
         if((this.cursors.right.isDown) ||
-           (game.input.mousePointer.pageX > this.bride.x + brideDimensions) ||
-           (game.input.pointer1.isDown && (game.input.pointer1.pageX > this.bride.x + brideDimensions))) {
+           (game.input.mousePointer.withinGame && (game.input.mousePointer.pageX > this.bride.x + brideDimensions) ||
+           (game.input.pointer1.isDown && (game.input.pointer1.pageX > this.bride.x + brideDimensions)))) {
             b.velocity.x = baseVelocity;
         }
         if((this.cursors.up.isDown) ||
-           (game.input.mousePointer.pageY < this.bride.y - brideDimensions) ||
-           (game.input.pointer1.isDown && (game.input.pointer1.pageY < this.bride.y - brideDimensions))) {
+           (game.input.mousePointer.withinGame && (game.input.mousePointer.pageY < this.bride.y - brideDimensions) ||
+           (game.input.pointer1.isDown && (game.input.pointer1.pageY < this.bride.y - brideDimensions))
+           )) {
             b.velocity.y = -baseVelocity;
         }
         if((this.cursors.down.isDown) ||
-           (game.input.mousePointer.pageY > this.bride.y + brideDimensions) ||
-           (game.input.pointer1.isDown && (game.input.pointer1.pageY > this.bride.y + brideDimensions))) {
+           (game.input.mousePointer.withinGame && (game.input.mousePointer.pageY > this.bride.y + brideDimensions) ||
+           (game.input.pointer1.isDown && (game.input.pointer1.pageY > this.bride.y + brideDimensions)))) {
             b.velocity.y = baseVelocity;
         }
+
+        if(this.bride.x + b.halfWidth> floor[1].x) {
+            this.bride.x = floor[1].x - b.halfWidth;
+        }
+
+        this.game.input.touch.touchEndCallback = function(){
+            b.velocity.x = 0;
+            b.velocity.y = 0;
+        };
 
         if(this.fireCommand()) {
             this.fireBouquet();
         }
     },
     fireCommand: function() {
-        return (this.spaceKey.isDown || game.input.mousePointer.isDown || game.input.pointer2.isDown);
+        return gameRunning && (this.spaceKey.isDown || game.input.mousePointer.isDown || game.input.pointer2.isDown);
     },
     fireBouquet: function() {
-        if(!this.bouquet.alive) {
-            this.bouquet.visible = true;
+        var fired = this.bouquet.fire();
+        if(fired) {
             game.add.audio(sounds.throw).play();
-            var bouquetInitialPosition = this.bouquetInitialPosition();
-            this.bouquet.x = bouquetInitialPosition.x;
-            this.bouquet.y = bouquetInitialPosition.y;
-            this.bouquet.revive();
             this.updateBouquetsUsed();
         }
     },
     bouquetUpdate: function() {
-        this.bouquet.body.velocity.x = 3 * baseVelocity;
-        this.bouquet.body.velocity.y = 0;
-        game.physics.arcade.collide(this.bouquet, this.maids, this.bouquetCollisionHandler, null, this);
+        game.physics.arcade.overlap(this.bouquet.bullets, this.maids, this.bouquetCollisionHandler, null, this);
     },
     updateScore: function(val) {
         score += val;
-        scoreText.text = 'Score: ' + score;
+        this.updateScoreText(score);
+    },
+    updateScoreText: function(score) {
+        scoreText.text = scoreTextLabel + score;
     },
     updateBouquetsUsed: function() {
         bouquetsUsed += 1;
-        bouquetsUsedText.text = 'Bouquets Used: ' + bouquetsUsed;
+        this.updateBouquetsUsedText(bouquetsUsed);
+    },
+    updateBouquetsUsedText: function(bouquetsUsed) {
+        bouquetsUsedText.text = bouquetsUsedTextLabel + bouquetsUsed;
     },
     bouquetCollisionHandler: function(b, m) {
         var explosion = this.explosions.getFirstExists(false);
@@ -176,8 +211,65 @@ var state = {
         explosion.play(sprites.explosion, 30, false, true);
         m.kill();
         b.kill();
-        this.updateScore(10);
+        this.updateScore(1);
+
+        if(this.maids.total <= 0) {
+            this.showEndGameStatistics();
+        }
+    },
+    showEndGameStatistics: function() {
+        this.bouquet.bullets.callAll('kill');
+        this.bride.kill();
+
+        var style = { font: "bold 32px Arial", fill: "#fff", boundsAlignH: "center", boundsAlignV: "middle" };
+
+        endGame.text1 = game.add.text(0, 0, "Parabéns! Você eliminou todas as inimigas", style);
+        endGame.text1.setShadow(3, 3, 'rgba(0,0,0,0.5)', 2);
+        endGame.text1.setTextBounds(0, 100, screenWidth, 100);
+
+        endGame.text2 = game.add.text(0, 0, "Seu aproveitamento foi de " + Math.round((score * 100 / bouquetsUsed),2) + "%", style);
+        endGame.text2.setShadow(3, 3, 'rgba(0,0,0,0.5)', 2);
+        endGame.text2.setTextBounds(0, 150, screenWidth, 150);
+
+        endGame.button = new LabelButton(this.game, screenWidth/2, 300, null, "Clique aqui para reiniciar", function(){this.restart();}, this, 2, 0, 1, style);
+
+        gameRunning = false;
+    },
+    restart: function() {
+        endGame.text1.destroy();
+        endGame.text2.destroy();
+        endGame.button.destroy();
+        score = 0;
+        this.updateScoreText(score);
+        bouquetsUsed = 0;
+        this.updateBouquetsUsedText(bouquetsUsed);
+        this.bride.revive();
+        this.setBrideInitialPosition();
+        this.createMaids();
+
+        gameRunning = true;
     }
 };
 
 var game = new Phaser.Game(screenWidth, screenHeight, Phaser.AUTO, 'crazy-bride', state);
+
+//trick to create a button with text instead of sprite
+var LabelButton = function(game, x, y, key, label, callback, callbackContext, overFrame, outFrame, downFrame, upFrame, style) {
+    Phaser.Button.call(this, game, x, y, key, callback, callbackContext, overFrame, outFrame, downFrame, upFrame);
+    
+    this.anchor.setTo( 0.5, 0.5 );
+    this.label = new Phaser.Text(game, 0, 0, label, style);
+    this.label.setShadow(3, 3, 'rgba(0,0,0,0.5)', 2);
+
+    //puts the label in the center of the button
+    this.label.anchor.setTo( 0.5, 0.5 );
+    this.addChild(this.label);
+    this.setLabel( label );
+    //adds button to game
+    game.add.existing( this );
+};
+LabelButton.prototype = Object.create(Phaser.Button.prototype);
+LabelButton.prototype.constructor = LabelButton;
+LabelButton.prototype.setLabel = function( label ) {
+    this.label.setText(label);
+};
