@@ -1,6 +1,7 @@
-var screenWidth = 1080;
-var screenHeight = 640;
+var screenWidth = 720;
+var screenHeight = 480;
 var brideDimensions = 16;
+var maidDimensions = 16;
 
 var cursors;
 var baseVelocity = 100;
@@ -50,7 +51,7 @@ var state = {
         this.cursors = game.input.keyboard.createCursorKeys();
         this.spaceKey = game.input.keyboard.addKey(Phaser.Keyboard.SPACEBAR);
 
-        floor = [{x: 0, y: 0}, {x: brideDimensions * 15, y: game.world.height}];
+        floor = [{x: 0, y: 0}, {x: brideDimensions * 8, y: game.world.height}];
 
         this.createFloor();
         this.createBride();
@@ -116,7 +117,7 @@ var state = {
         var spriteMaid = Phaser.ArrayUtils.getRandomItem([sprites.maid1, sprites.maid2, sprites.maid3]);
         do {
             var posX = game.world.randomX;
-        } while(posX < game.world.width/3);
+        } while(posX < floor[1].x || posX > screenWidth - maidDimensions);
         
         var posY = game.world.randomY;
         var maid = this.maids.create(posX, posY, spriteMaid);
@@ -143,25 +144,41 @@ var state = {
         b.velocity.x = 0;
         b.velocity.y = 0;
 
+        var mouseWithinFloor = this.mouseWithinFloor();
+
         if((this.cursors.left.isDown) ||
-           (game.input.mousePointer.withinGame && (game.input.mousePointer.pageX < this.bride.x - brideDimensions) ||
-           (game.input.pointer1.isDown && (game.input.pointer1.pageX < this.bride.x - brideDimensions)))) {
+            (
+              (mouseWithinFloor && (game.input.mousePointer.pageX < this.bride.x - brideDimensions)) ||
+              (game.input.pointer1.isDown && (game.input.pointer1.pageX < this.bride.x - brideDimensions))
+            )
+        ) {
             b.velocity.x = -baseVelocity;
         }
+
         if((this.cursors.right.isDown) ||
-           (game.input.mousePointer.withinGame && (game.input.mousePointer.pageX > this.bride.x + brideDimensions) ||
-           (game.input.pointer1.isDown && (game.input.pointer1.pageX > this.bride.x + brideDimensions)))) {
+            (
+              (mouseWithinFloor && (game.input.mousePointer.pageX > this.bride.x + brideDimensions)) ||
+              (game.input.pointer1.isDown && (game.input.pointer1.pageX > this.bride.x + brideDimensions))
+            )
+        ) {
             b.velocity.x = baseVelocity;
         }
+
         if((this.cursors.up.isDown) ||
-           (game.input.mousePointer.withinGame && (game.input.mousePointer.pageY < this.bride.y - brideDimensions) ||
-           (game.input.pointer1.isDown && (game.input.pointer1.pageY < this.bride.y - brideDimensions))
-           )) {
+            (
+              (mouseWithinFloor && (game.input.mousePointer.pageY < this.bride.y - brideDimensions)) ||
+              (game.input.pointer1.isDown && (game.input.pointer1.pageY < this.bride.y - brideDimensions))
+            )
+        ) {
             b.velocity.y = -baseVelocity;
         }
+
         if((this.cursors.down.isDown) ||
-           (game.input.mousePointer.withinGame && (game.input.mousePointer.pageY > this.bride.y + brideDimensions) ||
-           (game.input.pointer1.isDown && (game.input.pointer1.pageY > this.bride.y + brideDimensions)))) {
+            (
+              (mouseWithinFloor && (game.input.mousePointer.pageY > this.bride.y + brideDimensions)) ||
+              (game.input.pointer1.isDown && (game.input.pointer1.pageY > this.bride.y + brideDimensions))
+            )
+        ) {
             b.velocity.y = baseVelocity;
         }
 
@@ -178,8 +195,26 @@ var state = {
             this.fireBouquet();
         }
     },
+    mouseWithinFloor: function() {
+        var mp = game.input.mousePointer;
+        var ret = mp.withinGame &&
+            mp.pageX > floor[0].x &&
+            mp.pageX < floor[1].x &&
+            mp.pageY > floor[0].y &&
+            mp.pageY < floor[1].y;
+
+        return ret;
+    },
     fireCommand: function() {
-        return gameRunning && (this.spaceKey.isDown || game.input.mousePointer.isDown || game.input.pointer2.isDown);
+        return gameRunning &&
+            (this.spaceKey.isDown ||
+            game.input.mousePointer.isDown ||
+            (game.input.pointer1.isDown &&
+                game.input.pointer1.pageY > 0 &&
+                game.input.pointer1.pageY < floor[1].y &&
+                game.input.pointer1.pageX > floor[1].x &&
+                game.input.pointer1.pageY < screenWidth
+            ));
     },
     fireBouquet: function() {
         var fired = this.bouquet.fire();
